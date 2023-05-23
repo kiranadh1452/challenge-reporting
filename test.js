@@ -42,6 +42,39 @@ const gradesForStudentWithId1 = [
   }
 ]
 
+const allCourseSummary = {
+  Calculus: {
+    highest: 100,
+    lowest: 0,
+    average: 50.092707476891704,
+    count: 40137
+  },
+  Microeconomics: {
+    highest: 100,
+    lowest: 0,
+    average: 49.81138092966018,
+    count: 39821
+  },
+  Statistics: {
+    highest: 100,
+    lowest: 0,
+    average: 50.017376820961566,
+    count: 40226
+  },
+  Astronomy: {
+    highest: 100,
+    lowest: 0,
+    average: 50.03889013536774,
+    count: 40113
+  },
+  Philosophy: {
+    highest: 100,
+    lowest: 0,
+    average: 50.016063556894785,
+    count: 40153
+  }
+}
+
 tape('health', async function (t) {
   const url = `${endpoint}/health`
   try {
@@ -115,6 +148,18 @@ tape('get grades report for student with non-existing id', async function (t) {
   try {
     const { response } = await jsonist.get(url)
     t.equal(response.statusCode, 404, 'should have status code 404')
+    t.end()
+  } catch (e) {
+    t.error(e)
+  }
+})
+
+tape('get grades report for all courses', async function (t) {
+  const url = `${endpoint}/course/all/grades`
+  try {
+    const { data, response } = await jsonist.get(url)
+    t.equal(response.statusCode, 200, 'should have status code 200')
+    t.deepEqual(data, allCourseSummary, 'should have same course summary data')
     t.end()
   } catch (e) {
     t.error(e)

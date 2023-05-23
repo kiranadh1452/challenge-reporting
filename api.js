@@ -1,11 +1,8 @@
 const axios = require('axios')
-
-const knex = require('./db')
-
 const {
-  sendErrorResponse,
-  formatAndThrowError
+  sendErrorResponse
 } = require('./utils/errorHandler')
+const databaseHandler = require('./dataLayer/databaseHandler')
 
 // since grades do not change and isn't much, we'll fetch them only once and then cache the record
 let allGradeDataCache = null
@@ -19,50 +16,47 @@ module.exports = {
 
 async function getHealth (req, res, next) {
   try {
-    await knex('students').first()
-    res.json({ success: true })
+    const data = await databaseHandler.getHealth()
+    res.json(data)
   } catch (e) {
     console.log(e)
     res.status(500).end()
   }
 }
 
-async function getStudentById (id) {
-  if (!id || id === ':id') {
-    formatAndThrowError(400, 'Student id is required.')
-  }
-
-  const student = await knex('students').where({ id }).first()
-
-  if (!student) formatAndThrowError(404, 'Student not found.')
-
-  delete student.password_hash
-  return student
-}
-
 async function getStudent (req, res, next) {
   try {
     const { id } = req.params
 
-    const student = await getStudentById(id)
+    const student = await databaseHandler.getStudentById(id)
     res.status(200).json(student).end()
   } catch (e) {
     sendErrorResponse(e, req, res, next)
   }
 }
 
+function cacheGradeData () {
+  return new Promise((resolve, reject) => {
+    if (allGradeDataCache) {
+      return resolve()
+    }
+
+    axios
+      .get('https://outlier-coding-test-data.onrender.com/grades.json')
+      .then(({ data }) => {
+        allGradeDataCache = data
+        resolve()
+      })
+      .catch(reject)
+  })
+}
+
 async function getStudentGradesReport (req, res, next) {
   try {
     const { id } = req.params
-    const student = await getStudentById(id)
+    const student = await databaseHandler.getStudentById(id)
 
-    if (!allGradeDataCache) {
-      // if grades are not cached, fetch them from the server
-      const { data } = await axios.get(
-        'https://outlier-coding-test-data.onrender.com/grades.json'
-      )
-      allGradeDataCache = data
-    }
+    if (!allGradeDataCache) await cacheGradeData()
 
     // Find the matching grade record for the student and trim id from each record to avoid duplicacy
     const grades = allGradeDataCache
@@ -82,5 +76,33 @@ async function getStudentGradesReport (req, res, next) {
 }
 
 async function getCourseGradesReport (req, res, next) {
-  throw new Error('This method has not been implemented yet.')
+  try {
+    if (!allGradeDataCache) await cacheGradeData()
+
+    // find highest, lowest and average grade for each course
+    const courseGrades = allGradeDataCache.reduce(
+      (acc, { id, course, grade }) => {
+        acc[course] = acc[course] || {
+          highest: grade,
+          lowest: grade,
+          average: grade,
+          count: 0
+        }
+
+        acc[course].highest = Math.max(acc[course].highest, grade)
+        acc[course].lowest = Math.min(acc[course].lowest, grade)
+        acc[course].average =
+          (acc[course].average * acc[course].count + grade) /
+          (acc[course].count + 1)
+        acc[course].count++
+
+        return acc
+      },
+      {}
+    )
+
+    res.status(200).json(courseGrades)
+  } catch (e) {
+    sendErrorResponse(e, req, res, next)
+  }
 }
