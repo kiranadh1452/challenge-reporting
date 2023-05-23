@@ -6,14 +6,59 @@ const endpoint = `http://localhost:${port}`
 
 const server = require('./server')
 
+const userWithId1 = {
+  id: 1,
+  first_name: 'Scotty',
+  last_name: 'Quigley',
+  email: 'Scotty79@hotmail.com',
+  is_registered: 1,
+  is_approved: 1,
+  password_hash: '657907e1fd8e48e2be2aa59031ff8e0f0ecf8694',
+  address: '241 Denesik Knolls Apt. 955',
+  city: 'Buffalo',
+  state: 'ME',
+  zip: '04710',
+  phone: '1-503-560-6954',
+  created: '1628767983203.0',
+  last_login: '1628770445749.0',
+  ip_address: '2.137.18.155'
+}
+
 tape('health', async function (t) {
   const url = `${endpoint}/health`
   try {
     const { data, response } = await jsonist.get(url)
     if (response.statusCode !== 200) {
-      throw new Error('Error connecting to sqlite database; did you initialize it by running `npm run init-db`?')
+      throw new Error(
+        'Error connecting to sqlite database; did you initialize it by running `npm run init-db`?'
+      )
     }
     t.ok(data.success, 'should have successful healthcheck')
+    t.end()
+  } catch (e) {
+    t.error(e)
+  }
+})
+
+tape('get student with id 1', async function (t) {
+  const url = `${endpoint}/student/1`
+  try {
+    const { data, response } = await jsonist.get(url)
+    t.equal(response.statusCode, 200, 'should have status code 200')
+    t.equal(data.id, 1, 'should have id 1')
+    t.deepEquals(data, userWithId1, 'should have same data')
+    t.end()
+  } catch (e) {
+    t.error(e)
+  }
+})
+
+tape('trying to get student with invalid id', async function (t) {
+  const url = `${endpoint}/student/:id`
+  try {
+    const { response } = await jsonist.get(url)
+    console.log(response)
+    t.equal(response.statusCode, 400, 'should have status code 400')
     t.end()
   } catch (e) {
     t.error(e)
