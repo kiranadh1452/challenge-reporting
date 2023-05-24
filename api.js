@@ -1,8 +1,8 @@
-const axios = require('axios')
-const {
-  sendErrorResponse
-} = require('./utils/errorHandler')
+const { runWorker } = require('./workers/initiateWorker')
+const { sendErrorResponse } = require('./utils/errorHandler')
 const databaseHandler = require('./dataLayer/databaseHandler')
+
+const urlOfJsonData = 'https://outlier-coding-test-data.onrender.com/grades.json'
 
 // since grades do not change and isn't much, we'll fetch them only once and then cache the record
 let allGradeDataCache = null
@@ -35,20 +35,13 @@ async function getStudent (req, res, next) {
   }
 }
 
-function cacheGradeData () {
-  return new Promise((resolve, reject) => {
-    if (allGradeDataCache) {
-      return resolve()
-    }
-
-    axios
-      .get('https://outlier-coding-test-data.onrender.com/grades.json')
-      .then(({ data }) => {
-        allGradeDataCache = data
-        resolve()
-      })
-      .catch(reject)
-  })
+// helper function to fetch grades data and cache it
+async function cacheGradeData () {
+  if (!allGradeDataCache) {
+    allGradeDataCache = await runWorker('./jsonDataFetcher.js', {
+      url: urlOfJsonData
+    })
+  }
 }
 
 async function getStudentGradesReport (req, res, next) {
@@ -80,26 +73,9 @@ async function getCourseGradesReport (req, res, next) {
     if (!allGradeDataCache) await cacheGradeData()
 
     // find highest, lowest and average grade for each course
-    const courseGrades = allGradeDataCache.reduce(
-      (acc, { id, course, grade }) => {
-        acc[course] = acc[course] || {
-          highest: grade,
-          lowest: grade,
-          average: grade,
-          count: 0
-        }
-
-        acc[course].highest = Math.max(acc[course].highest, grade)
-        acc[course].lowest = Math.min(acc[course].lowest, grade)
-        acc[course].average =
-          (acc[course].average * acc[course].count + grade) /
-          (acc[course].count + 1)
-        acc[course].count++
-
-        return acc
-      },
-      {}
-    )
+    const courseGrades = await runWorker('./gradeReporter.js', {
+      data: allGradeDataCache
+    })
 
     res.status(200).json(courseGrades)
   } catch (e) {
