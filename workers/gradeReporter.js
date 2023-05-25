@@ -8,7 +8,7 @@ try {
       highest: grade,
       lowest: grade,
       average: grade,
-      count: 1
+      count: 0
     }
 
     acc[course].highest = Math.max(acc[course].highest, grade)
