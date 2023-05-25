@@ -2,9 +2,8 @@ const { runWorker } = require('./workers/initiateWorker')
 const { sendErrorResponse } = require('./utils/errorHandler')
 const databaseHandler = require('./dataLayer/databaseHandler')
 
-const urlOfJsonData = 'https://outlier-coding-test-data.onrender.com/grades.json'
-
 // since grades do not change and isn't much, we'll fetch them only once and then cache the record
+let gradeReports = null
 let allGradeDataCache = null
 
 module.exports = {
@@ -14,10 +13,17 @@ module.exports = {
   getCourseGradesReport
 }
 
+// helper function to fetch grades data and cache it
+async function cacheGradeData () {
+  if (!allGradeDataCache) {
+    allGradeDataCache = await runWorker('./jsonDataFetcher.js')
+  }
+}
+
 async function getHealth (req, res, next) {
   try {
     const data = await databaseHandler.getHealth()
-    res.json(data)
+    return res.json(data)
   } catch (e) {
     console.log(e)
     res.status(500).end()
@@ -29,18 +35,9 @@ async function getStudent (req, res, next) {
     const { id } = req.params
 
     const student = await databaseHandler.getStudentById(id)
-    res.status(200).json(student).end()
+    return res.status(200).json(student).end()
   } catch (e) {
     sendErrorResponse(e, req, res, next)
-  }
-}
-
-// helper function to fetch grades data and cache it
-async function cacheGradeData () {
-  if (!allGradeDataCache) {
-    allGradeDataCache = await runWorker('./jsonDataFetcher.js', {
-      url: urlOfJsonData
-    })
   }
 }
 
@@ -49,7 +46,7 @@ async function getStudentGradesReport (req, res, next) {
     const { id } = req.params
     const student = await databaseHandler.getStudentById(id)
 
-    if (!allGradeDataCache) await cacheGradeData()
+    await cacheGradeData()
 
     // Find the matching grade record for the student and trim id from each record to avoid duplicacy
     const grades = allGradeDataCache
@@ -70,14 +67,14 @@ async function getStudentGradesReport (req, res, next) {
 
 async function getCourseGradesReport (req, res, next) {
   try {
-    if (!allGradeDataCache) await cacheGradeData()
+    await cacheGradeData()
 
-    // find highest, lowest and average grade for each course
-    const courseGrades = await runWorker('./gradeReporter.js', {
+    // check if we already have the grade reports cached, if not then calculate it
+    gradeReports = gradeReports || await runWorker('./gradeReporter.js', {
       data: allGradeDataCache
     })
 
-    res.status(200).json(courseGrades)
+    return res.status(200).json(gradeReports)
   } catch (e) {
     sendErrorResponse(e, req, res, next)
   }

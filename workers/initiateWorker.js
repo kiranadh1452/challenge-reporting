@@ -17,9 +17,14 @@ function runWorker (fileName, data) {
       } else {
         resolve(message)
       }
+      worker.terminate()
     })
 
-    worker.on('error', reject)
+    worker.on('error', (err) => {
+      reject(err)
+      worker.terminate()
+    }
+    )
 
     worker.on('exit', (code) => {
       if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`))
