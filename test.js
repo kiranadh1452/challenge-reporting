@@ -159,7 +159,7 @@ tape('get grades report for all courses', async function (t) {
   try {
     const { data, response } = await jsonist.get(url)
     t.equal(response.statusCode, 200, 'should have status code 200')
-    t.deepEqual(data.data, allCourseSummary, 'should have same course summary data')
+    t.deepEqual(data, allCourseSummary, 'should have same course summary data')
     t.end()
   } catch (e) {
     t.error(e)

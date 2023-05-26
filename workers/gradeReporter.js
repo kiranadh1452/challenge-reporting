@@ -20,7 +20,7 @@ function calculateGradeReportForAllCourse (data) {
       return acc
     }, {})
 
-    parentPort.postMessage({ data: formattedData })
+    parentPort.postMessage(formattedData)
   } catch (e) {
     parentPort.postMessage({ error: e.message })
   }
