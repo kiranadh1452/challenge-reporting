@@ -1,0 +1,29 @@
+name: Test Backend CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Chekout code
+        uses: actions/checkout@v3
+
+      - name: Install node required
+        uses: actions/setup-node@v3
+        with:
+          node-version: 14.x
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fetch Students Record Holdinf Database
+        run: npm run init-db
+
+      - name: Run tests
+        run: npm test
